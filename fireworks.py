@@ -12,10 +12,12 @@ def locate(place):
         return str(location.latitude) + ',' + str(location.longitude) + ',' + str(location) + '\n'
 
 
-def rate_limit(my_gen, seconds=1):
+# A rate limiter to handle the Twython generator and the Twitter API's tweet retrieval limits
+# user id as dict key filters out duplicate tweets
+def rate_limit(my_gen, seconds=10):
     stop = 50
     gen_dict = {}
-    while stop != 200:
+    while stop != 500:
         limit = islice(my_gen, stop)
         for i in limit:
             gen_dict[i['user']['id']] = i['user']['location']
@@ -24,7 +26,7 @@ def rate_limit(my_gen, seconds=1):
     return gen_dict
 
 
-with open('/Users/admin/JupyterProjects/secret_twitter_credentials.pkl', 'rb') as pkl:
+with open('secret_twitter_credentials.pkl', 'rb') as pkl:
     Twitter = pickle.load(pkl)
 
 api = Twython(app_key=Twitter['Consumer Key'],
@@ -34,11 +36,9 @@ api = Twython(app_key=Twitter['Consumer Key'],
 
 results = api.cursor(api.search, q='firework conspiracy')
 
-rate_dict = rate_limit(results, seconds=10)
-with open('/Users/admin/PycharmProjects/Fireworks/rate_locs.csv', 'a') as loc_file:
-    for i in filter(None, map(locate, rate_dict.values())):
-        loc_file.write(i)
-
-
-
-
+rate_dict = rate_limit(results)
+with open('rate_locs.csv', 'a') as loc_file:
+    # Filters out None returned from locate function when users tag locations with no lat or long
+    # ie. Philly, New York State of Mind, etc.
+    for loc in filter(None, map(locate, rate_dict.values())):
+        loc_file.write(loc)
